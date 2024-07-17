@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            background-color: #2E2E2E;
+            color: #FFFFFF;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .editor-container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .toolbar {
+            background: #444;
+            border: 1px solid #333;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            border-radius: 5px;
+            box-shadow: 0px 0px 8px #888888;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .toolbar button,
+        .toolbar select {
+            background: #555;
+            color: #FFF;
+            border: 1px solid #FFF;
+            padding: 5px 8px;
+            cursor: pointer;
+            outline: none;
+            font-size: 0.9em;
+            border-radius: 5px;
+        }
+        .toolbar button:hover,
+        .toolbar select:hover {
+            background-color: #666;
+        }
+        .editor {
+            border: 1px solid #333;
+            min-height: 300px;
+            padding: 10px;
+            background: #555;
+            color: #FFF;
+            border-radius: 5px;
+            box-shadow: inset 0px 0px 5px #000;
+            text-align: left;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            overflow: auto;
+            outline: none;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-left: 10px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #fff;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .save-as {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .file-size {
+            font-size: 0.8em;
+            color: #ccc;
+            margin-top: 2px;
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="toolbar">
+        <label class="switch">
+            <input type="checkbox" onclick="toggleTheme()">
+            <span class="slider"></span>
+        </label>
+        <button onclick="execCmd('undo')"><i class="fas fa-undo"></i></button>
+        <button onclick="execCmd('redo')"><i class="fas fa-redo"></i></button>
+        <button onclick="execCmd('bold')"><i class="fas fa-bold"></i></button>
+        <button onclick="execCmd('italic')"><i class="fas fa-italic"></i></button>
+        <button onclick="execCmd('underline')"><i class="fas fa-underline"></i></button>
+        <button onclick="execCmd('strikeThrough')"><i class="fas fa-strikethrough"></i></button>
+        <button onclick="execCmd('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+        <button onclick="execCmd('insertOrderedList')"><i class="fas fa-list-ol"></i></button>
+        <button onclick="execCmd('createLink', prompt('Enter the URL', 'http://'))"><i class="fas fa-link"></i></button>
+        <button onclick="execCmd('unlink')"><i class="fas fa-unlink"></i></button>
+        <select id="fontName" onchange="execCmd('fontName', this.value)">
+            <option value="">Font</option>
+            <option value="Arial">Arial</option>
+            <option value="Comic Sans MS">Comic Sans MS</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Verdana">Verdana</option>
+        </select>
+        <select id="fontSize" onchange="changeFontSize(this.value)">
+            <option value="3">Font Size</option>
+            <option value="1">1 (Small)</option>
+            <option value="2">2</option>
+            <option value="3">3 (Normal)</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7 (Large)</option>
+        </select>
+        <span class="save-as">Save As:</span>
+        <select id="saveFormat" onchange="updateFileSize()">
+            <option value="txt">TXT</option>
+            <option value="html">HTML</option>
+            <option value="pdf">PDF</option>
+            <option value="md">Markdown</option>
+        </select>
+        <button onclick="saveText()">Save</button>
+        <button onclick="encryptText()">Encrypt</button>
+        <button onclick="decryptText()">Decrypt</button>
+        <input type="file" id="fileInput" accept=".txt,.html" onchange="loadFile(event)">
+        <div class="file-size" id="fileSize">~0 bytes</div>
+    </div>
+    <div class="editor" contenteditable="true" oninput="updateFileSize()"></div>
+</div>
+
+<script>
+    let darkMode = false;
+
+    function toggleTheme() {
+        darkMode = !darkMode;
+        document.body.style.backgroundColor = darkMode ? '#FFFFFF' : '#2E2E2E';
+        document.body.style.color = darkMode ? '#000000' : '#FFFFFF';
+        document.querySelector('.editor-container').style.backgroundColor = darkMode ? '#F0F0F0' : '#444';
+    }
+
+    function execCmd(command, value = null) {
+        document.execCommand(command, false, value);
+    }
+
+    function changeFontSize(size) {
+        document.execCommand('fontSize', false, size);
+        let fontElements = document.getElementsByTagName('font');
+        for (let i = 0; i < fontElements.length; i++) {
+            let fontSize = window.getComputedStyle(fontElements[i], null).fontSize;
+            fontElements[i].removeAttribute('size');
+            fontElements[i].style.fontSize = fontSize;
+        }
+    }
+
+    function updateFileSize() {
+        const content = document.querySelector('.editor').innerText;
+        const format = document.getElementById('saveFormat').value;
+        const fileSize = content.length === 0 ? 0 : (format === 'html' ? content.length : new Blob([content]).size);
+        document.getElementById('fileSize').innerText = `~${fileSize} bytes`;
+    }
+
+    function encryptText() {
+        const content = document.querySelector('.editor').innerText;
+        const encrypted = Array.from(content)
+            .map(char => `${char.charCodeAt(0).toString().split('').reverse().join('')}⸻`)
+            .join('');
+        document.querySelector('.editor').innerText = encrypted.slice(0, -1);
+        updateFileSize();
+    }
+
+    function decryptText() {
+        const content = document.querySelector('.editor').innerText;
+        const decrypted = content.split('⸻')
+            .map(code => String.fromCharCode(parseInt(code.split('').reverse().join(''))))
+            .join('');
+        document.querySelector('.editor').innerText = decrypted;
+        updateFileSize();
+    }
+
+    function saveText() {
+        const format = document.getElementById('saveFormat').value;
+        const editorContent = document.querySelector('.editor').innerHTML;
+        let blob;
+
+        if (format === 'pdf') {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+            pdf.text(editorContent, 10, 10);
+            pdf.save('editorContent.pdf');
+        } else {
+            const plainText = format === 'html' ? editorContent : editorContent.replace(/<[^>]+>/g, '');
+            blob = new Blob([plainText], { type: format === 'html' ? 'text/html' : 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `editorContent.${format}`;
+            link.click();
+        }
+    }
+
+    function loadFile(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.querySelector('.editor').innerHTML = e.target.result;
+            updateFileSize();
+        };
+        reader.readAsText(file);
+    }
+</script>
+
+</body>
+</html>
